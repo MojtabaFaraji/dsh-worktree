@@ -1,6 +1,6 @@
 - insert:
     - id: worktree
-      name: 'dsh-worktree'
+      name: 'dsh-worktree-plugin'
       config:
         baseRef: fresh
         root: .dsh/worktrees

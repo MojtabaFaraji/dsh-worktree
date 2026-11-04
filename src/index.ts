@@ -1,7 +1,7 @@
 /**
  * Cordis entrypoint for the dsh worktree plugin.
  *
- * @module dsh-worktree
+ * @module dsh-worktree-plugin
  */
 
 import { Context } from '@deepseek-ai/cordis'
@@ -15,7 +15,7 @@ import {
   validateSlug,
 } from './schemas.ts'
 
-export const name = 'dsh-worktree'
+export const name = 'dsh-worktree-plugin'
 
 // No `inject` declared: the tools service is optional. The plugin activates
 // without it and registers `select_branch_worktree` only when `ctx.tools`

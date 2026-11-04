@@ -1,7 +1,7 @@
 /**
  * Input validation for the dsh worktree plugin.
  *
- * @module dsh-worktree/schemas
+ * @module dsh-worktree-plugin/schemas
  */
 
 import { z } from 'zod'

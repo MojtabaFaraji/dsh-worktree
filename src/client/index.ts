@@ -4,14 +4,14 @@
  * Registers a worktree picker/switcher into the `conversation.input.left`
  * slot of the chat message box, alongside the command menu button.
  *
- * @module dsh-worktree/client
+ * @module dsh-worktree-plugin/client
  */
 
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import { WorktreePicker } from './WorktreePicker.tsx'
 
 /** Stable Cordis plugin name. */
-export const name = 'dsh-worktree-client'
+export const name = 'dsh-worktree-plugin-client'
 
 /** Services required by the client worktree plugin. */
 export const inject = ['slots']
@@ -33,7 +33,7 @@ export function apply(ctx: ClientContext): void {
       inputActions: props.inputActions as unknown as { captureInsertion: () => { start: number; end: number; draftRev: number }; insertText: (text: string, span: { start: number; end: number; draftRev: number }) => boolean },
       sessionId: props.sessionId,
     })
-  }), 'dsh-worktree-client: worktree picker')
+  }), 'dsh-worktree-plugin-client: worktree picker')
 }
 
 export default { name, inject, apply }

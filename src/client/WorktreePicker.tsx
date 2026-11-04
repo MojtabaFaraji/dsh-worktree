@@ -8,7 +8,7 @@
  * draft via `inputActions.insertText`, which the model then executes
  * through the `select_branch_worktree` tool.
  *
- * @module dsh-worktree/client
+ * @module dsh-worktree-plugin/client
  */
 
 import { createElement, useCallback, useMemo, useState } from 'react'
@@ -19,13 +19,13 @@ import {
 
 
 const WORKTREE_CSS = `
-.dsh-worktree-picker-wrapper {
+.dsh-worktree-plugin-picker-wrapper {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   position: relative;
 }
-.dsh-worktree-picker-button {
+.dsh-worktree-plugin-picker-button {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -38,15 +38,15 @@ const WORKTREE_CSS = `
   cursor: pointer;
   transition: all 0.2s;
 }
-.dsh-worktree-picker-button:hover {
+.dsh-worktree-plugin-picker-button:hover {
   background: var(--dsw-button-hover-bg, #e5e7eb);
   border-color: var(--dsw-button-hover-border, #9ca3af);
 }
-.dsh-worktree-icon {
+.dsh-worktree-plugin-icon {
   display: inline-flex;
   align-items: center;
 }
-.dsh-worktree-active-label {
+.dsh-worktree-plugin-active-label {
   font-size: 11px;
   font-weight: 500;
   color: var(--dsw-text-secondary, #6b7280);
@@ -55,7 +55,7 @@ const WORKTREE_CSS = `
   text-overflow: ellipsis;
   max-width: 100px;
 }
-.dsh-worktree-create-form {
+.dsh-worktree-plugin-create-form {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -65,7 +65,7 @@ const WORKTREE_CSS = `
   border-radius: 6px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
-.dsh-worktree-create-input {
+.dsh-worktree-plugin-create-input {
   flex: 1;
   padding: 4px 8px;
   font-size: 12px;
@@ -75,10 +75,10 @@ const WORKTREE_CSS = `
   color: var(--dsw-input-text, #111827);
   outline: none;
 }
-.dsh-worktree-create-input:focus {
+.dsh-worktree-plugin-create-input:focus {
   border-color: var(--dsw-input-focus-border, #2563eb);
 }
-.dsh-worktree-create-cancel {
+.dsh-worktree-plugin-create-cancel {
   padding: 4px 10px;
   font-size: 12px;
   border: none;
@@ -87,15 +87,15 @@ const WORKTREE_CSS = `
   color: var(--dsw-button-secondary-text, #111827);
   cursor: pointer;
 }
-.dsh-worktree-create-cancel:hover {
+.dsh-worktree-plugin-create-cancel:hover {
   background: var(--dsw-button-secondary-hover-bg, #e5e7eb);
 }
 `;
 
 function injectWorktreeCss() {
-  if (document.getElementById('dsh-worktree-picker-css')) return;
+  if (document.getElementById('dsh-worktree-plugin-picker-css')) return;
   const style = document.createElement('style');
-  style.id = 'dsh-worktree-picker-css';
+  style.id = 'dsh-worktree-plugin-picker-css';
   style.textContent = WORKTREE_CSS;
   document.head.appendChild(style);
 }
@@ -165,25 +165,25 @@ export function WorktreePicker({ inputActions, sessionId: _sessionId, activeWork
     }
   }, [insertCommand])
 
-  return createElement('div', { className: 'dsh-worktree-picker-wrapper' },
+  return createElement('div', { className: 'dsh-worktree-plugin-picker-wrapper' },
     createElement(Button, {
       type: 'button',
-      className: 'dsh-worktree-picker-button',
+      className: 'dsh-worktree-plugin-picker-button',
       'aria-label': 'Worktree picker',
       onMouseDown: (e: React.MouseEvent<HTMLButtonElement>) => { e.stopPropagation() },
       onClick: () => { setOpen(!open) },
     },
-      createElement('span', { className: 'dsh-worktree-icon' },
+      createElement('span', { className: 'dsh-worktree-plugin-icon' },
         createElement(IconBranchOutlineRegular, { size: 14 })
       ),
-      activeWorktree && createElement('span', { className: 'dsh-worktree-active-label' },
+      activeWorktree && createElement('span', { className: 'dsh-worktree-plugin-active-label' },
         activeWorktree
       )
     ),
-    creating && createElement('div', { className: 'dsh-worktree-create-form' },
+    creating && createElement('div', { className: 'dsh-worktree-plugin-create-form' },
       createElement('input', {
         autoFocus: true,
-        className: 'dsh-worktree-create-input',
+        className: 'dsh-worktree-plugin-create-input',
         value: newName,
         onChange: (e: React.ChangeEvent<HTMLInputElement>) => setNewName(e.target.value),
         onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -200,7 +200,7 @@ export function WorktreePicker({ inputActions, sessionId: _sessionId, activeWork
       }),
       createElement('button', {
         type: 'button',
-        className: 'dsh-worktree-create-cancel',
+        className: 'dsh-worktree-plugin-create-cancel',
         onClick: () => { setCreating(false); setNewName('') },
       }, 'Cancel')
     ),

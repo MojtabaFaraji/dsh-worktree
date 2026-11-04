@@ -1,7 +1,7 @@
 import { defineConfig } from 'tsdown'
 
 export default defineConfig({
-  name: 'dsh-worktree/client',
+  name: 'dsh-worktree-plugin/client',
   entry: { client: 'lib/types/client/index.js' },
   outDir: 'lib',
   format: 'cjs',
@@ -29,7 +29,7 @@ export default defineConfig({
     chunkFileNames: 'client.[name].js',
     sourcemapExcludeSources: false,
     banner: (chunk) => {
-      const id = JSON.stringify('dsh-worktree')
+      const id = JSON.stringify('dsh-worktree-plugin')
       const registration = chunk.isEntry
         ? `window.__ModuleLoader__.load({ id: ${id}, factory: (require) => {`
         : `window.__ModuleLoader__.load({ id: ${id}, chunk: ${JSON.stringify(chunk.fileName)}, factory: (require) => {`

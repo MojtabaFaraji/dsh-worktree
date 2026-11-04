@@ -1,14 +1,14 @@
-# dsh-worktree
+# dsh-worktree-plugin
 
 Git worktree management with GUI picker for DeepSeek Harness — create, switch, and remove isolated git worktrees from the chat message box.
 
-[![npm version](https://img.shields.io/npm/v/dsh-worktree)](https://www.npmjs.com/package/dsh-worktree)
+[![npm version](https://img.shields.io/npm/v/dsh-worktree-plugin)](https://www.npmjs.com/package/dsh-worktree-plugin)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Cordis Plugin](https://img.shields.io/badge/Cordis-Plugin-blue)](https://github.com/deepseek-ai/deepseek-harness)
 
 ## Overview
 
-dsh-worktree is a Cordis plugin for DeepSeek Harness that provides isolated git worktree management. It adds a select_branch_worktree tool to the model and a worktree picker/switcher GUI component to the chat message box.
+dsh-worktree-plugin is a Cordis plugin for DeepSeek Harness that provides isolated git worktree management. It adds a select_branch_worktree tool to the model and a worktree picker/switcher GUI component to the chat message box.
 
 ## Features
 
@@ -27,14 +27,14 @@ dsh-worktree is a Cordis plugin for DeepSeek Harness that provides isolated git 
 ### Install from npm
 
 ```bash
-npm install dsh-worktree
+npm install dsh-worktree-plugin
 ```
 
 ### Install from source
 
 ```bash
-git clone https://github.com/MojtabaFaraji/dsh-worktree.git
-cd dsh-worktree
+git clone https://github.com/MojtabaFaraji/dsh-worktree-plugin.git
+cd dsh-worktree-plugin
 npm install
 npm run build
 ```
@@ -46,7 +46,7 @@ Add the plugin to your DeepSeek Harness profile's cordis.patch.yml:
 ```yaml
 - insert:
     - id: worktree
-      name: 'dsh-worktree'
+      name: 'dsh-worktree-plugin'
       config:
         baseRef: fresh
         root: .dsh/worktrees
@@ -120,14 +120,14 @@ Parameters:
 
 ### Client Plugin
 
-- Name: dsh-worktree-client
+- Name: dsh-worktree-plugin-client
 - Slot: conversation.input.left (chat message box)
 - Order: 50
 
 ## Project Structure
 
 ```
-dsh-worktree/
+dsh-worktree-plugin/
 ├── src/
 │   ├── index.ts              # Host-side Cordis plugin entry
 │   ├── types.ts              # Shared types and Context augmentation
@@ -181,7 +181,7 @@ MIT License — see LICENSE for details.
 
 ## Repository
 
-https://github.com/MojtabaFaraji/dsh-worktree
+https://github.com/MojtabaFaraji/dsh-worktree-plugin
 
 ## Support
 

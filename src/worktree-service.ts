@@ -1,7 +1,7 @@
 /**
  * Core git worktree logic and in-memory state for the dsh worktree plugin.
  *
- * @module dsh-worktree/worktree-service
+ * @module dsh-worktree-plugin/worktree-service
  */
 
 import { Context, Service } from '@deepseek-ai/cordis'
@@ -141,7 +141,7 @@ export class WorktreeService extends Service {
   }
 
   private async withRepoLock<T>(repoRoot: string, fn: () => Promise<T>): Promise<T> {
-    const lockPath = path.join(repoRoot, '.git', 'dsh-worktree.lock')
+    const lockPath = path.join(repoRoot, '.git', 'dsh-worktree-plugin.lock')
     const handle = await fs.open(lockPath, 'wx')
     try {
       return await fn()
