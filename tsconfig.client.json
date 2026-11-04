@@ -1,0 +1,34 @@
+{
+  "extends": "../../tsconfig.base.client.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "lib/types",
+    "tsBuildInfoFile": "lib/tsconfig.client.tsbuildinfo"
+  },
+  "include": [
+    "src/client"
+  ],
+  "references": [
+    {
+      "path": "../../vendor/cordis"
+    },
+    {
+      "path": "../../packages/core/tools"
+    },
+    {
+      "path": "../client/ui-slots"
+    },
+    {
+      "path": "../client/ui-primitives"
+    },
+    {
+      "path": "../client/store"
+    },
+    {
+      "path": "../client/ui-conversation/tsconfig.client.json"
+    }
+  ],
+  "exclude": [
+    "src/index.ts"
+  ]
+}

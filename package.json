@@ -1,0 +1,98 @@
+{
+  "name": "@deepseek-ai/dsh-worktree",
+  "description": "Git worktree and branch isolation for DeepSeek Harness",
+  "version": "0.1.7-alpha.1",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MojtabaFaraji/dsh-worktree.git",
+    "directory": "packages/worktree-plugin"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./types": {
+      "types": "./lib/types/types.d.ts",
+      "default": "./lib/types/types.js"
+    },
+    "./schemas": {
+      "types": "./lib/types/schemas.d.ts",
+      "default": "./lib/types/schemas.js"
+    },
+    "./worktree-service": {
+      "types": "./lib/types/worktree-service.d.ts",
+      "default": "./lib/types/worktree-service.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./client": {
+      "types": "./lib/types/client/index.d.ts",
+      "default": "./lib/client.js"
+    }
+  },
+  "files": [
+    "lib/index.js",
+    "lib/types/**/*.js",
+    "lib/types/**/*.d.ts",
+    "cordis.patch.yml",
+    "lib/client.js",
+    "lib/client.js.map",
+    "lib/types/client/**/*.d.ts",
+    "lib/index.js.map"
+  ],
+  "license": "MIT",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-conversation",
+        "@deepseek-ai/dsh-client-ui-primitives"
+      ],
+      "platform": "web",
+      "immediately": true,
+      "external": [
+        "react",
+        "@deepseek-ai/dsh-client-ui-conversation",
+        "@deepseek-ai/dsh-client-ui-primitives"
+      ]
+    }
+  },
+  "dependencies": {
+    "zod": "^4.4.3"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.0",
+    "@deepseek-ai/dsh-tools": "workspace:^",
+    "react": "^18.3.1",
+    "@deepseek-ai/dsh-client-ui-conversation": "workspace:^",
+    "@deepseek-ai/dsh-client-ui-primitives": "workspace:^"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "workspace:^",
+    "@deepseek-ai/dsh-tools": "workspace:^",
+    "typescript": "^5.9.0",
+    "@types/react": "^18.3.3"
+  },
+  "bugs": {
+    "url": "https://github.com/MojtabaFaraji/dsh-worktree/issues"
+  },
+  "homepage": "https://github.com/MojtabaFaraji/dsh-worktree#readme",
+  "keywords": [
+    "deepseek-harness",
+    "cordis",
+    "worktree",
+    "git",
+    "plugin",
+    "gui"
+  ]
+}
