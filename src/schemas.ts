@@ -1,7 +1,7 @@
 /**
  * Input validation for the dsh worktree plugin.
  *
- * @module @deepseek-ai/dsh-worktree/schemas
+ * @module dsh-worktree/schemas
  */
 
 import { z } from 'zod'

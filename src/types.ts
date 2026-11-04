@@ -2,7 +2,7 @@
  * Shared types for the dsh worktree plugin. The Cordis `Context` augmentation
  * lives here so `ctx.worktree` is typed at every call site.
  *
- * @module @deepseek-ai/dsh-worktree/types
+ * @module dsh-worktree/types
  */
 
 import type { WorktreeService } from './worktree-service.ts'

@@ -8,7 +8,7 @@
  * draft via `inputActions.insertText`, which the model then executes
  * through the `select_branch_worktree` tool.
  *
- * @module @deepseek-ai/dsh-worktree/client
+ * @module dsh-worktree/client
  */
 
 import { createElement, useCallback, useMemo, useState } from 'react'

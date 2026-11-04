@@ -4,7 +4,7 @@
  * Registers a worktree picker/switcher into the `conversation.input.left`
  * slot of the chat message box, alongside the command menu button.
  *
- * @module @deepseek-ai/dsh-worktree/client
+ * @module dsh-worktree/client
  */
 
 import type { Context as ClientContext } from '@deepseek-ai/cordis'

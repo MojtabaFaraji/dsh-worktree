@@ -1,7 +1,7 @@
 /**
  * Cordis entrypoint for the dsh worktree plugin.
  *
- * @module @deepseek-ai/dsh-worktree
+ * @module dsh-worktree
  */
 
 import { Context } from '@deepseek-ai/cordis'

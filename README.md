@@ -1,14 +1,14 @@
-# @deepseek-ai/dsh-worktree
+# dsh-worktree
 
 Git worktree management with GUI picker for DeepSeek Harness — create, switch, and remove isolated git worktrees from the chat message box.
 
-[![npm version](https://img.shields.io/npm/v/@deepseek-ai/dsh-worktree)](https://www.npmjs.com/package/@deepseek-ai/dsh-worktree)
+[![npm version](https://img.shields.io/npm/v/dsh-worktree)](https://www.npmjs.com/package/dsh-worktree)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Cordis Plugin](https://img.shields.io/badge/Cordis-Plugin-blue)](https://github.com/deepseek-ai/deepseek-harness)
 
 ## Overview
 
-@deepseek-ai/dsh-worktree is a Cordis plugin for DeepSeek Harness that provides isolated git worktree management. It adds a select_branch_worktree tool to the model and a worktree picker/switcher GUI component to the chat message box.
+dsh-worktree is a Cordis plugin for DeepSeek Harness that provides isolated git worktree management. It adds a select_branch_worktree tool to the model and a worktree picker/switcher GUI component to the chat message box.
 
 ## Features
 
@@ -27,7 +27,7 @@ Git worktree management with GUI picker for DeepSeek Harness — create, switch,
 ### Install from npm
 
 ```bash
-npm install @deepseek-ai/dsh-worktree
+npm install dsh-worktree
 ```
 
 ### Install from source
@@ -46,7 +46,7 @@ Add the plugin to your DeepSeek Harness profile's cordis.patch.yml:
 ```yaml
 - insert:
     - id: worktree
-      name: '@deepseek-ai/dsh-worktree'
+      name: 'dsh-worktree'
       config:
         baseRef: fresh
         root: .dsh/worktrees

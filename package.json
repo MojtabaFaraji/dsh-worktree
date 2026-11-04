@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-worktree",
+  "name": "dsh-worktree",
   "description": "Git worktree and branch isolation for DeepSeek Harness",
   "version": "0.1.7-alpha.1",
   "publishConfig": {

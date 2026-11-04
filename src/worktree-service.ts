@@ -1,7 +1,7 @@
 /**
  * Core git worktree logic and in-memory state for the dsh worktree plugin.
  *
- * @module @deepseek-ai/dsh-worktree/worktree-service
+ * @module dsh-worktree/worktree-service
  */
 
 import { Context, Service } from '@deepseek-ai/cordis'

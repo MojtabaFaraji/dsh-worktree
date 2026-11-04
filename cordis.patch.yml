@@ -1,6 +1,6 @@
 - insert:
     - id: worktree
-      name: '@deepseek-ai/dsh-worktree'
+      name: 'dsh-worktree'
       config:
         baseRef: fresh
         root: .dsh/worktrees
