@@ -30,7 +30,7 @@ export function apply(ctx: Context, config: Config = {}): void {
   // available immediately for the tool handler and session hook. Using
   // `ctx.plugin(WorktreeService, config)` here would defer construction to
   // a microtask, leaving `ctx.worktree` unresolved when `apply` continues.
-  new WorktreeService(ctx, config)
+  const service = new WorktreeService(ctx, config)
 
   // Optionally register the select_branch_worktree tool if the tools service
   // exists in this Cordis build. `ctx.tools` itself would throw through the
@@ -70,7 +70,6 @@ export function apply(ctx: Context, config: Config = {}): void {
           force?: boolean
         }
 
-        const service = ctx.worktree
         switch (input.action) {
           case 'create': {
             if (input.name !== undefined) validateSlug(input.name)
@@ -93,7 +92,7 @@ export function apply(ctx: Context, config: Config = {}): void {
             return service.create(repoRoot, options) as any
           }
           case 'list': {
-            const worktrees = await ctx.worktree.list(repoRoot)
+            const worktrees = await service.list(repoRoot)
             ctx.emit('worktree/changed', {
               repoRoot,
               worktrees,
@@ -155,14 +154,14 @@ export function apply(ctx: Context, config: Config = {}): void {
               prNumber: 'prNumber' in createInput ? createInput.prNumber : undefined,
               repoRoot,
             }
-            const record = await ctx.worktree.create(repoRoot, options)
-            const createdWorktrees = await ctx.worktree.list(repoRoot)
+            const record = await service.create(repoRoot, options)
+            const createdWorktrees = await service.list(repoRoot)
             ctx.emit('worktree/changed', { repoRoot, worktrees: createdWorktrees, timestamp: Date.now() })
             sendJson(res, 200, { success: true, record, timestamp: Date.now() })
             break
           }
           case 'list': {
-            const worktrees = await ctx.worktree.list(repoRoot)
+            const worktrees = await service.list(repoRoot)
             ctx.emit('worktree/changed', { repoRoot, worktrees, timestamp: Date.now() })
             sendJson(res, 200, { success: true, worktrees, timestamp: Date.now() })
             break
@@ -173,12 +172,12 @@ export function apply(ctx: Context, config: Config = {}): void {
             validateSlug(body.name)
             if (body.name === 'main') {
               // "main" is the base repository, not a git worktree — switching is a no-op on host.
-              const mainWorktrees = await ctx.worktree.list(repoRoot)
+              const mainWorktrees = await service.list(repoRoot)
               ctx.emit('worktree/changed', { repoRoot, worktrees: mainWorktrees, timestamp: Date.now() })
               sendJson(res, 200, { success: true, record: { name: 'main', path: repoRoot, branch: 'main', baseRef: 'head' }, timestamp: Date.now() })
               break
             }
-            const switchRecords = await ctx.worktree.list(repoRoot)
+            const switchRecords = await service.list(repoRoot)
             const record = switchRecords.find((entry: { name: string }) => entry.name === body.name)
             if (record === undefined) throw new Error('unknown worktree: ' + body.name)
             sendJson(res, 200, { success: true, record, timestamp: Date.now() })
@@ -188,8 +187,8 @@ export function apply(ctx: Context, config: Config = {}): void {
             const body = await readBody(req)
             if (body.name === undefined) throw new Error('name is required for remove')
             validateSlug(body.name)
-            await ctx.worktree.remove(repoRoot, body.name, body.force === true)
-            const removedWorktrees = await ctx.worktree.list(repoRoot)
+            await service.remove(repoRoot, body.name, body.force === true)
+            const removedWorktrees = await service.list(repoRoot)
             ctx.emit('worktree/changed', { repoRoot, worktrees: removedWorktrees, timestamp: Date.now() })
             sendJson(res, 200, { success: true, name: body.name, timestamp: Date.now() })
             break
@@ -258,7 +257,7 @@ export function apply(ctx: Context, config: Config = {}): void {
       const name = cfg.name ?? `session-${String(session.id ?? '').slice(0, 8)}`
       void (async () => {
         try {
-          const record = await ctx.worktree.create(session.cwd ?? process.cwd(), {
+          const record = await service.create(session.cwd ?? process.cwd(), {
             name,
             baseRef: cfg.baseRef ?? 'fresh',
           })

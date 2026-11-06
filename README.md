@@ -27,6 +27,10 @@ dsh-worktree-plugin is a Cordis plugin for DeepSeek Harness that provides isolat
 | 💾 Persistence | Worktree records persisted to disk (`<repoRoot>/.dsh/worktree-records.json`) — survive server restarts |
 | ⏳ Loading States | Spinner and disabled state during all async operations |
 
+
+### Cordis Service Access (Host Side)
+
+The host-side plugin accesses the `WorktreeService` through a captured instance (`const service = new WorktreeService(ctx, config)`) rather than `ctx.worktree`. Cordis requires explicit `inject` declarations for context property access; using the captured instance avoids the "cannot get property 'worktree' without inject" error while keeping the plugin activation independent of optional Cordis services.
 ## Installation
 
 ### Install from npm (recommended)
