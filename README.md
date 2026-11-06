@@ -8,7 +8,7 @@ Git worktree management with GUI picker for DeepSeek Harness — create, switch,
 
 ## Overview
 
-dsh-worktree-plugin is a Cordis plugin for DeepSeek Harness that provides isolated git worktree management. It adds a select_branch_worktree tool to the model and a worktree picker/switcher GUI component to the chat message box.
+dsh-worktree-plugin is a Cordis plugin for DeepSeek Harness that provides isolated git worktree management. It adds a `select_branch_worktree` tool to the model and a worktree picker/switcher GUI component to the chat message box.
 
 ## Features
 
@@ -24,16 +24,19 @@ dsh-worktree-plugin is a Cordis plugin for DeepSeek Harness that provides isolat
 | 📱 Toasts | Beautiful success/error/info toast notifications instead of alerts |
 | 🎨 Modal Dialogs | Beautiful modal dialogs with select box for create and remove operations |
 | 🔄 Auto-Refresh | Worktree list auto-refreshes after create, switch, and remove operations |
-| 💾 Persistence | Worktree list persists across page refresh via host fetch on mount |
+| 💾 Persistence | Worktree records persisted to disk (`<repoRoot>/.dsh/worktree-records.json`) — survive server restarts |
 | ⏳ Loading States | Spinner and disabled state during all async operations |
 
 ## Installation
 
-### Install from npm
+### Install from npm (recommended)
 
 ```bash
-npm install dsh-worktree-plugin
+dsh plugin install dsh-worktree-plugin
+pnpm dsh web
 ```
+
+**No `--patch` flag needed.** The plugin manager auto-registers the bundle via `dsh.bundle.patch` in package.json.
 
 ### Install from source
 
@@ -42,11 +45,15 @@ git clone https://github.com/MojtabaFaraji/dsh-worktree-plugin.git
 cd dsh-worktree-plugin
 npm install
 npm run build
+dsh plugin install file:///path/to/dsh-worktree-plugin
+pnpm dsh web
 ```
 
 ## Activation
 
-Add the plugin to your DeepSeek Harness profile's cordis.patch.yml:
+The plugin activates automatically on `pnpm dsh web` after `dsh plugin install dsh-worktree-plugin` — no manual `cordis.patch.yml` edits needed.
+
+If you want to customize configuration, add to your profile's `cordis.patch.yml`:
 
 ```yaml
 - insert:
@@ -86,7 +93,7 @@ Click the branch icon to open the worktree menu. The active worktree name appear
 | Create worktree… | Opens beautiful modal to create a new worktree |
 | Remove worktree… | Opens select box modal to remove a worktree |
 
-No user knowledge of tools required. The user never needs to know about select_branch_worktree or tell the agent to call it. The plugin handles everything transparently via HTTP calls from the client GUI to the host.
+No user knowledge of tools required. The user never needs to know about `select_branch_worktree` or tell the agent to call it. The plugin handles everything transparently via HTTP calls from the client GUI to the host.
 
 The active worktree name is displayed next to the icon so you always know which worktree you're in.
 
@@ -100,11 +107,20 @@ Then click Refresh list to see it appear below "Switch to main".
 
 ### Auto-Refresh
 
-When the agent creates, removes, or lists worktrees through the select_branch_worktree tool, the host emits a worktree/changed event. The client GUI listens for this event and automatically updates the worktree dropdown — no manual refresh needed.
+When the agent creates, removes, or lists worktrees through the `select_branch_worktree` tool, the host emits a `worktree/changed` event. The client GUI listens for this event and automatically updates the worktree dropdown — no manual refresh needed.
+
+### Persistence Across Restarts
+
+Worktree records are persisted to `<repoRoot>/.dsh/worktree-records.json`. When you restart the web server:
+
+1. `ensureLoaded()` reads the JSON file from disk
+2. Each record is validated against `git worktree list --porcelain`
+3. Stale entries (worktrees that no longer exist on disk) are dropped
+4. Your worktrees reappear in the GUI — no re-creation needed
 
 ### Automatic Tool Invocation
 
-The plugin uses zero-agent-knowledge operation — GUI menu clicks auto-call the select_branch_worktree tool via HTTP to the host without the user typing commands or the agent knowing about tools:
+The plugin uses zero-agent-knowledge operation — GUI menu clicks auto-call the `select_branch_worktree` tool via HTTP to the host without the user typing commands or the agent knowing about tools:
 
 | Step | Action | Who |
 |------|--------|-----|
@@ -116,15 +132,15 @@ The plugin uses zero-agent-knowledge operation — GUI menu clicks auto-call the
 | 6 | GUI shows toast notification with result | GUI |
 | 7 | Worktree list auto-refreshes | GUI |
 
-No user knowledge of tools required. The user never needs to know about select_branch_worktree or tell the agent to call it. The plugin handles everything transparently.
+No user knowledge of tools required. The user never needs to know about `select_branch_worktree` or tell the agent to call it. The plugin handles everything transparently.
 
 ### Fallback
 
-If Cordis events cannot cross the client-host boundary in your deployment, the plugin falls back to inserting /worktree commands into the draft. In that case, the agent needs to call select_branch_worktree manually. The plugin uses HTTP routes on the host WebServer as the IPC mechanism between client and host contexts.
+If Cordis events cannot cross the client-host boundary in your deployment, the plugin falls back to inserting /worktree commands into the draft. In that case, the agent needs to call `select_branch_worktree` manually. The plugin uses HTTP routes on the host WebServer as the IPC mechanism between client and host contexts.
 
 ### Command Interface
 
-Each GUI action inserts a /worktree command into your draft. The model then executes it through the select_branch_worktree tool:
+Each GUI action inserts a /worktree command into your draft. The model then executes it through the `select_branch_worktree` tool:
 
 | Command | Description |
 |---------|-------------|
@@ -136,7 +152,7 @@ Each GUI action inserts a /worktree command into your draft. The model then exec
 ### Creation Modes
 
 | Mode | Description |
-|------|-------------|
+|---------|-------------|
 | fresh | Creates a worktree with a fresh checkout |
 | head | Creates a worktree from current HEAD |
 | branch | Creates a worktree from an existing branch |

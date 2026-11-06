@@ -1,5 +1,9 @@
 /**
- * Core git worktree logic and in-memory state for the dsh worktree plugin.
+ * Core git worktree logic and persistent worktree state for the dsh worktree plugin.
+ *
+ * Worktree records are persisted to disk at `<repoRoot>/.dsh/worktree-records.json`
+ * so they survive server restarts. On load, records are validated against the live
+ * `git worktree list --porcelain` output to drop stale entries.
  *
  * @module dsh-worktree-plugin/worktree-service
  */
@@ -15,6 +19,9 @@ import { validateBranchName, validateSlug } from './schemas.ts'
 
 const execFileAsync = promisify(execFile)
 
+/** Filename for persisted worktree records (stored alongside the worktrees directory). */
+const RECORDS_FILENAME = 'worktree-records.json'
+
 /** Structured git failure. */
 export class GitCommandError extends Error {
   readonly subcommand: string
@@ -29,10 +36,11 @@ export class GitCommandError extends Error {
   }
 }
 
-/** Service identity and in-memory worktree state. */
+/** Service identity and persistent worktree state. */
 export class WorktreeService extends Service {
   private readonly config: WorktreeConfig
   private readonly recordsByRepo = new Map<string, Map<string, WorktreeRecord>>()
+  private readonly loadedRepoRoots = new Set<string>()
 
   constructor(ctx: Context, config: WorktreeConfig = {}) {
     super(ctx, 'worktree')
@@ -51,6 +59,13 @@ export class WorktreeService extends Service {
       : path.resolve(root, configured)
     this.assertSandboxPath(root, resolved)
     return resolved
+  }
+
+  /** Path to the persisted records JSON file for one repository. */
+  recordsFile(repoRoot: string): string {
+    const root = path.resolve(repoRoot)
+    const wtRoot = this.worktreeRoot(root)
+    return path.join(path.dirname(wtRoot), RECORDS_FILENAME)
   }
 
   /** Resolve and guard a worktree path. */
@@ -105,6 +120,69 @@ export class WorktreeService extends Service {
     }
   }
 
+  /** Ensure worktree records for one repo are loaded from disk (once per process). */
+  private async ensureLoaded(repoRoot: string): Promise<void> {
+    const key = path.resolve(repoRoot)
+    if (this.loadedRepoRoots.has(key)) return
+
+    const filePath = this.recordsFile(key)
+    let records: WorktreeRecord[] = []
+    try {
+      const content = await fs.readFile(filePath, 'utf8')
+      const parsed = JSON.parse(content)
+      if (Array.isArray(parsed)) {
+        records = parsed.filter((r): r is WorktreeRecord =>
+          r && typeof r.name === 'string' && typeof r.path === 'string' &&
+          typeof r.branch === 'string' && typeof r.baseRef === 'string' &&
+          typeof r.createdAt === 'number'
+        )
+      }
+    } catch {
+      // No persisted file yet — start empty.
+    }
+
+    // Validate each record against the live git worktree list to drop stale entries.
+    let registeredPaths = new Set<string>()
+    try {
+      const output = await this.git(key, ['worktree', 'list', '--porcelain'])
+      registeredPaths = new Set(
+        output
+          .split('\n')
+          .filter(line => line.startsWith('worktree '))
+          .map(line => path.resolve(line.slice('worktree '.length).trim()))
+      )
+    } catch {
+      // Git not available or not a repo — keep records as-is.
+    }
+
+    const map = new Map<string, WorktreeRecord>()
+    for (const record of records) {
+      if (registeredPaths.has(path.resolve(record.path))) {
+        map.set(record.name, record)
+      } else {
+        this.ctx.logger?.warn?.('dropping stale worktree record %s (path no longer registered: %s)', record.name, record.path)
+      }
+    }
+    this.recordsByRepo.set(key, map)
+    this.loadedRepoRoots.add(key)
+  }
+
+  /** Persist worktree records for one repo to disk. */
+  private async saveRecords(repoRoot: string): Promise<void> {
+    const key = path.resolve(repoRoot)
+    const filePath = this.recordsFile(key)
+    const map = this.recordsByRepo.get(key)
+    if (map === undefined) return
+
+    const records = [...map.values()]
+    try {
+      await fs.mkdir(path.dirname(filePath), { recursive: true })
+      await fs.writeFile(filePath, JSON.stringify(records, null, 2))
+    } catch (error) {
+      this.ctx.logger?.warn?.('failed to persist worktree records: %s', error)
+    }
+  }
+
   private records(repoRoot: string): Map<string, WorktreeRecord> {
     const key = path.resolve(repoRoot)
     let map = this.recordsByRepo.get(key)
@@ -118,6 +196,7 @@ export class WorktreeService extends Service {
   private commitRecord(repoRoot: string, record: WorktreeRecord): WorktreeRecord {
     const committed: WorktreeRecord = { ...record, createdAt: record.createdAt || Date.now() }
     this.records(repoRoot).set(committed.name, committed)
+    void this.saveRecords(repoRoot)
     return committed
   }
 
@@ -218,6 +297,7 @@ export class WorktreeService extends Service {
   }
 
   async createFresh(repoRoot: string, name: string): Promise<WorktreeRecord> {
+    await this.ensureLoaded(repoRoot)
     validateSlug(name)
     const resolvedRepoRoot = path.resolve(repoRoot)
     const target = this.resolveWorktreePath(resolvedRepoRoot, name)
@@ -247,6 +327,7 @@ export class WorktreeService extends Service {
   }
 
   async createFromHead(repoRoot: string, name: string): Promise<WorktreeRecord> {
+    await this.ensureLoaded(repoRoot)
     validateSlug(name)
     const resolvedRepoRoot = path.resolve(repoRoot)
     const target = this.resolveWorktreePath(resolvedRepoRoot, name)
@@ -258,6 +339,7 @@ export class WorktreeService extends Service {
   }
 
   async createFromBranch(repoRoot: string, name: string, branch: string): Promise<WorktreeRecord> {
+    await this.ensureLoaded(repoRoot)
     validateSlug(name)
     // validateBranchName is in schemas; avoid importing value? import dynamically not needed.
     validateBranchName(branch)
@@ -280,6 +362,7 @@ export class WorktreeService extends Service {
   }
 
   async createFromPR(repoRoot: string, prNumber: number, name?: string): Promise<WorktreeRecord> {
+    await this.ensureLoaded(repoRoot)
     const slug = name ?? `pr-${prNumber}`
     validateSlug(slug)
     const resolvedRepoRoot = path.resolve(repoRoot)
@@ -298,6 +381,7 @@ export class WorktreeService extends Service {
   }
 
   async create(repoRoot: string, options: CreateWorktreeOptions): Promise<WorktreeRecord> {
+    await this.ensureLoaded(repoRoot)
     const baseRef = options.baseRef ?? this.config.baseRef ?? 'fresh'
     const name = options.name ?? (baseRef === 'pr' && options.prNumber !== undefined ? `pr-${options.prNumber}` : undefined)
     if (name === undefined) throw new Error('worktree name is required')
@@ -319,23 +403,28 @@ export class WorktreeService extends Service {
 
   /** Emit worktree/changed event for client GUI auto-refresh. */
   private emitWorktreeChanged(repoRoot: string): void {
-    try {
-      const resolved = path.resolve(repoRoot)
-      this.ctx.emit('worktree/changed', {
-        repoRoot: resolved,
-        worktrees: this.list(resolved),
-        timestamp: Date.now(),
-      })
-    } catch {
-      // Event emission failures should not break worktree operations
-    }
+    void (async () => {
+      try {
+        const resolved = path.resolve(repoRoot)
+        this.ctx.emit('worktree/changed', {
+          repoRoot: resolved,
+          worktrees: await this.list(resolved),
+          timestamp: Date.now(),
+        })
+      } catch {
+        // Event emission failures should not break worktree operations
+      }
+    })()
   }
 
-  list(repoRoot: string): WorktreeRecord[] {
+  /** List all persisted worktree records for one repository. Loads from disk on first call. */
+  async list(repoRoot: string): Promise<WorktreeRecord[]> {
+    await this.ensureLoaded(repoRoot)
     return [...this.records(path.resolve(repoRoot)).values()]
   }
 
   async remove(repoRoot: string, name: string, force = false): Promise<void> {
+    await this.ensureLoaded(repoRoot)
     const resolvedRepoRoot = path.resolve(repoRoot)
     const target = this.resolveWorktreePath(resolvedRepoRoot, name)
     await this.withRepoLock(resolvedRepoRoot, async () => {
@@ -355,11 +444,13 @@ export class WorktreeService extends Service {
         // Branch may not exist or may be in use elsewhere; ignore.
       }
       this.records(resolvedRepoRoot).delete(name)
+      void this.saveRecords(resolvedRepoRoot)
     })
     this.emitWorktreeChanged(resolvedRepoRoot)
   }
 
   async prune(repoRoot: string): Promise<void> {
+    await this.ensureLoaded(repoRoot)
     const resolvedRepoRoot = path.resolve(repoRoot)
     await this.withRepoLock(resolvedRepoRoot, async () => {
       await this.git(resolvedRepoRoot, ['worktree', 'prune'], 120000)
@@ -367,6 +458,7 @@ export class WorktreeService extends Service {
       for (const [name, record] of map) {
         if (!(await this.pathExists(record.path))) map.delete(name)
       }
+      void this.saveRecords(resolvedRepoRoot)
     })
     this.emitWorktreeChanged(resolvedRepoRoot)
   }

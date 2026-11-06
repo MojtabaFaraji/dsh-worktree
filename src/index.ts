@@ -93,7 +93,7 @@ export function apply(ctx: Context, config: Config = {}): void {
             return service.create(repoRoot, options) as any
           }
           case 'list': {
-            const worktrees = ctx.worktree.list(repoRoot)
+            const worktrees = await ctx.worktree.list(repoRoot)
             ctx.emit('worktree/changed', {
               repoRoot,
               worktrees,
@@ -104,7 +104,8 @@ export function apply(ctx: Context, config: Config = {}): void {
           case 'switch': {
             if (input.name === undefined) throw new Error('name is required for switch')
             validateSlug(input.name)
-            const record = service.list(repoRoot).find(entry => entry.name === input.name)
+            const records = await service.list(repoRoot)
+            const record = records.find(entry => entry.name === input.name)
             if (record === undefined) throw new Error(`unknown worktree: ${input.name}`)
             if (toolCtx.ctx.session !== undefined) toolCtx.ctx.session.cwd = record.path
             const agentSession = exec.agent?.session as { cwd?: string } | undefined
@@ -155,12 +156,13 @@ export function apply(ctx: Context, config: Config = {}): void {
               repoRoot,
             }
             const record = await ctx.worktree.create(repoRoot, options)
-            ctx.emit('worktree/changed', { repoRoot, worktrees: ctx.worktree.list(repoRoot), timestamp: Date.now() })
+            const createdWorktrees = await ctx.worktree.list(repoRoot)
+            ctx.emit('worktree/changed', { repoRoot, worktrees: createdWorktrees, timestamp: Date.now() })
             sendJson(res, 200, { success: true, record, timestamp: Date.now() })
             break
           }
           case 'list': {
-            const worktrees = ctx.worktree.list(repoRoot)
+            const worktrees = await ctx.worktree.list(repoRoot)
             ctx.emit('worktree/changed', { repoRoot, worktrees, timestamp: Date.now() })
             sendJson(res, 200, { success: true, worktrees, timestamp: Date.now() })
             break
@@ -171,11 +173,13 @@ export function apply(ctx: Context, config: Config = {}): void {
             validateSlug(body.name)
             if (body.name === 'main') {
               // "main" is the base repository, not a git worktree — switching is a no-op on host.
-              ctx.emit('worktree/changed', { repoRoot, worktrees: ctx.worktree.list(repoRoot), timestamp: Date.now() })
+              const mainWorktrees = await ctx.worktree.list(repoRoot)
+              ctx.emit('worktree/changed', { repoRoot, worktrees: mainWorktrees, timestamp: Date.now() })
               sendJson(res, 200, { success: true, record: { name: 'main', path: repoRoot, branch: 'main', baseRef: 'head' }, timestamp: Date.now() })
               break
             }
-            const record = ctx.worktree.list(repoRoot).find((entry: { name: string }) => entry.name === body.name)
+            const switchRecords = await ctx.worktree.list(repoRoot)
+            const record = switchRecords.find((entry: { name: string }) => entry.name === body.name)
             if (record === undefined) throw new Error('unknown worktree: ' + body.name)
             sendJson(res, 200, { success: true, record, timestamp: Date.now() })
             break
@@ -185,7 +189,8 @@ export function apply(ctx: Context, config: Config = {}): void {
             if (body.name === undefined) throw new Error('name is required for remove')
             validateSlug(body.name)
             await ctx.worktree.remove(repoRoot, body.name, body.force === true)
-            ctx.emit('worktree/changed', { repoRoot, worktrees: ctx.worktree.list(repoRoot), timestamp: Date.now() })
+            const removedWorktrees = await ctx.worktree.list(repoRoot)
+            ctx.emit('worktree/changed', { repoRoot, worktrees: removedWorktrees, timestamp: Date.now() })
             sendJson(res, 200, { success: true, name: body.name, timestamp: Date.now() })
             break
           }
@@ -218,16 +223,29 @@ export function apply(ctx: Context, config: Config = {}): void {
     webServer.register({ kind: 'exact', path: basePath + '/remove', handler: (req, res) => handleAction(req, res, 'remove') })
   }
 
-  // Try to register HTTP routes immediately, or wait for WebServer to become available
+  // Try to register HTTP routes immediately, or wait for WebServer to become available.
+  // Guard against duplicate registration (idempotent): if routes already exist,
+  // webServer.register throws, so we track registration state.
+  let routesRegistered = false
   const webServer = ctx.reflect.get('webServer', false)
-  if (webServer) {
-    registerHttpRoutes(webServer)
-  } else {
+  if (webServer && !routesRegistered) {
+    try {
+      registerHttpRoutes(webServer)
+      routesRegistered = true
+    } catch {
+      // Route may already be registered from a previous activation — ignore.
+    }
+  } else if (!webServer) {
     ctx.on('internal/service', (_name: string, _value: any) => {
-      // Check if webServer became available
+      if (routesRegistered) return
       const ws = ctx.reflect.get('webServer', false)
       if (ws) {
-        registerHttpRoutes(ws)
+        try {
+          registerHttpRoutes(ws)
+          routesRegistered = true
+        } catch {
+          // Route may already be registered — ignore.
+        }
       }
     }, { global: true })
   }
