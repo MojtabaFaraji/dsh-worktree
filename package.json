@@ -1,7 +1,7 @@
 {
   "name": "dsh-worktree-plugin",
   "description": "Git worktree and branch isolation for DeepSeek Harness",
-  "version": "0.1.11",
+  "version": "0.1.14",
   "publishConfig": {
     "access": "public"
   },
