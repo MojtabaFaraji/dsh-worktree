@@ -18,9 +18,14 @@ dsh-worktree-plugin is a Cordis plugin for DeepSeek Harness that provides isolat
 | 🔄 Switch Worktrees | Switch between existing worktrees from the GUI |
 | 🗑️ Remove Worktrees | Remove worktrees you no longer need |
 | 📋 List Worktrees | View all worktrees in the current repository |
-| 🖱️ GUI Picker | Branch icon button in the chat composer bar |
+| 🖱️ GUI Picker | Beautiful branch icon button with active worktree badge in the chat composer bar |
 | 💬 Command Interface | /worktree commands inserted into your draft |
 | 🔒 Sandbox Safe | Path guards and locking for safe git execution |
+| 📱 Toasts | Beautiful success/error/info toast notifications instead of alerts |
+| 🎨 Modal Dialogs | Beautiful modal dialogs with select box for create and remove operations |
+| 🔄 Auto-Refresh | Worktree list auto-refreshes after create, switch, and remove operations |
+| 💾 Persistence | Worktree list persists across page refresh via host fetch on mount |
+| ⏳ Loading States | Spinner and disabled state during all async operations |
 
 ## Installation
 
@@ -65,21 +70,57 @@ Add the plugin to your DeepSeek Harness profile's cordis.patch.yml:
 
 ### GUI (Chat Message Box)
 
-After activation, a branch icon button appears in the chat composer bar alongside the command menu button:
+After activation, a branch icon button appears in the chat composer bar:
 
 ```
 [Type your message...] [branch icon | my-worktree] [command menu]
 ```
 
-Click the branch icon to open the worktree menu:
+Click the branch icon to open the worktree menu. The active worktree name appears next to the icon so you always know which worktree you're in.
 
 | Menu Item | Action |
 |-----------|--------|
-| Switch to <branch> | Switches to an existing worktree |
-| Create worktree... | Opens input to create a new worktree |
-| Remove worktree... | Prompts for worktree name to remove |
+| Switch to main | Switch to base repository (disabled when already active) |
+| Switch to <branch> | Switch to an existing worktree (disabled when already active) |
+| Refresh list | Refreshes worktree list from host |
+| Create worktree… | Opens beautiful modal to create a new worktree |
+| Remove worktree… | Opens select box modal to remove a worktree |
+
+No user knowledge of tools required. The user never needs to know about select_branch_worktree or tell the agent to call it. The plugin handles everything transparently via HTTP calls from the client GUI to the host.
 
 The active worktree name is displayed next to the icon so you always know which worktree you're in.
+
+### Empty State & Main Worktree
+
+When no worktrees exist, the GUI shows "main" next to the icon and "Switch to main" at the top of the menu. Create your first worktree:
+
+> "Use select_branch_worktree to create a worktree named 'Test' with baseRef 'head'"
+
+Then click Refresh list to see it appear below "Switch to main".
+
+### Auto-Refresh
+
+When the agent creates, removes, or lists worktrees through the select_branch_worktree tool, the host emits a worktree/changed event. The client GUI listens for this event and automatically updates the worktree dropdown — no manual refresh needed.
+
+### Automatic Tool Invocation
+
+The plugin uses zero-agent-knowledge operation — GUI menu clicks auto-call the select_branch_worktree tool via HTTP to the host without the user typing commands or the agent knowing about tools:
+
+| Step | Action | Who |
+|------|--------|-----|
+| 1 | User clicks a menu item in the worktree picker | User |
+| 2 | GUI shows beautiful modal (create input or remove select box) | GUI |
+| 3 | Client fetches host HTTP route (/api/dsh-worktree-plugin/{create,remove,switch,list}) | Client |
+| 4 | Host executes git worktree operation | Host |
+| 5 | Host returns success/error result | Host |
+| 6 | GUI shows toast notification with result | GUI |
+| 7 | Worktree list auto-refreshes | GUI |
+
+No user knowledge of tools required. The user never needs to know about select_branch_worktree or tell the agent to call it. The plugin handles everything transparently.
+
+### Fallback
+
+If Cordis events cannot cross the client-host boundary in your deployment, the plugin falls back to inserting /worktree commands into the draft. In that case, the agent needs to call select_branch_worktree manually. The plugin uses HTTP routes on the host WebServer as the IPC mechanism between client and host contexts.
 
 ### Command Interface
 

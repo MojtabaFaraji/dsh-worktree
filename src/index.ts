@@ -92,8 +92,15 @@ export function apply(ctx: Context, config: Config = {}): void {
             }
             return service.create(repoRoot, options) as any
           }
-          case 'list':
-            return service.list(repoRoot) as any
+          case 'list': {
+            const worktrees = ctx.worktree.list(repoRoot)
+            ctx.emit('worktree/changed', {
+              repoRoot,
+              worktrees,
+              timestamp: Date.now(),
+            })
+            return worktrees as any
+          }
           case 'switch': {
             if (input.name === undefined) throw new Error('name is required for switch')
             validateSlug(input.name)
@@ -115,6 +122,114 @@ export function apply(ctx: Context, config: Config = {}): void {
         }
       },
     }))
+  }
+
+  // Register HTTP routes for client→host worktree execution.
+  // Host and client run in separate Cordis Contexts, so ctx.emit() events
+  // cannot cross the boundary. Instead, the client fetches HTTP endpoints
+  // registered on the host's WebServer.
+  function registerHttpRoutes(webServer: { register: (route: { kind: 'exact' | 'prefix'; path: string; handler: (req: any, res: any) => void | Promise<void> }) => () => void }): void {
+    const repoRoot = process.cwd()
+    const basePath = '/api/dsh-worktree-plugin'
+
+    async function handleAction(req: any, res: any, action: 'create' | 'list' | 'switch' | 'remove'): Promise<void> {
+      try {
+        switch (action) {
+          case 'create': {
+            const body = await readBody(req)
+            if (body.name === undefined) throw new Error('name is required for create')
+            validateSlug(body.name)
+            if (body.branch !== undefined) validateBranchName(body.branch)
+            const baseRef = body.baseRef ?? 'fresh'
+            const createInput = createWorktreeSchema.parse({
+              baseRef,
+              name: body.name,
+              ...(body.branch !== undefined ? { branch: body.branch } : {}),
+              ...(body.prNumber !== undefined ? { prNumber: body.prNumber } : {}),
+            })
+            const options: CreateWorktreeOptions = {
+              name: createInput.name,
+              baseRef: createInput.baseRef,
+              branch: 'branch' in createInput ? createInput.branch : undefined,
+              prNumber: 'prNumber' in createInput ? createInput.prNumber : undefined,
+              repoRoot,
+            }
+            const record = await ctx.worktree.create(repoRoot, options)
+            ctx.emit('worktree/changed', { repoRoot, worktrees: ctx.worktree.list(repoRoot), timestamp: Date.now() })
+            sendJson(res, 200, { success: true, record, timestamp: Date.now() })
+            break
+          }
+          case 'list': {
+            const worktrees = ctx.worktree.list(repoRoot)
+            ctx.emit('worktree/changed', { repoRoot, worktrees, timestamp: Date.now() })
+            sendJson(res, 200, { success: true, worktrees, timestamp: Date.now() })
+            break
+          }
+          case 'switch': {
+            const body = await readBody(req)
+            if (body.name === undefined) throw new Error('name is required for switch')
+            validateSlug(body.name)
+            if (body.name === 'main') {
+              // "main" is the base repository, not a git worktree — switching is a no-op on host.
+              ctx.emit('worktree/changed', { repoRoot, worktrees: ctx.worktree.list(repoRoot), timestamp: Date.now() })
+              sendJson(res, 200, { success: true, record: { name: 'main', path: repoRoot, branch: 'main', baseRef: 'head' }, timestamp: Date.now() })
+              break
+            }
+            const record = ctx.worktree.list(repoRoot).find((entry: { name: string }) => entry.name === body.name)
+            if (record === undefined) throw new Error('unknown worktree: ' + body.name)
+            sendJson(res, 200, { success: true, record, timestamp: Date.now() })
+            break
+          }
+          case 'remove': {
+            const body = await readBody(req)
+            if (body.name === undefined) throw new Error('name is required for remove')
+            validateSlug(body.name)
+            await ctx.worktree.remove(repoRoot, body.name, body.force === true)
+            ctx.emit('worktree/changed', { repoRoot, worktrees: ctx.worktree.list(repoRoot), timestamp: Date.now() })
+            sendJson(res, 200, { success: true, name: body.name, timestamp: Date.now() })
+            break
+          }
+        }
+      } catch (error) {
+        sendJson(res, 400, { success: false, error: error instanceof Error ? error.message : String(error), timestamp: Date.now() })
+      }
+    }
+
+    async function readBody(req: any): Promise<any> {
+      return new Promise((resolve, reject) => {
+        let data = ''
+        req.on('data', (chunk: string) => { data += chunk })
+        req.on('end', () => {
+          try { resolve(data ? JSON.parse(data) : {}) } catch (e) { reject(e) }
+        })
+        req.on('error', reject)
+      })
+    }
+
+    function sendJson(res: any, status: number, obj: any): void {
+      res.writeHead(status, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' })
+      res.end(JSON.stringify(obj))
+    }
+
+    // Register routes
+    webServer.register({ kind: 'exact', path: basePath + '/create', handler: (req, res) => handleAction(req, res, 'create') })
+    webServer.register({ kind: 'exact', path: basePath + '/list', handler: (req, res) => handleAction(req, res, 'list') })
+    webServer.register({ kind: 'exact', path: basePath + '/switch', handler: (req, res) => handleAction(req, res, 'switch') })
+    webServer.register({ kind: 'exact', path: basePath + '/remove', handler: (req, res) => handleAction(req, res, 'remove') })
+  }
+
+  // Try to register HTTP routes immediately, or wait for WebServer to become available
+  const webServer = ctx.reflect.get('webServer', false)
+  if (webServer) {
+    registerHttpRoutes(webServer)
+  } else {
+    ctx.on('internal/service', (_name: string, _value: any) => {
+      // Check if webServer became available
+      const ws = ctx.reflect.get('webServer', false)
+      if (ws) {
+        registerHttpRoutes(ws)
+      }
+    }, { global: true })
   }
 
   // Optional session hook. Guarded because not every build exposes the event.

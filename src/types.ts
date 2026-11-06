@@ -45,4 +45,31 @@ declare module '@deepseek-ai/cordis' {
   interface Context {
     worktree: WorktreeService
   }
+  interface Events {
+    /** Worktree collection changed (create, remove, prune, list). Payload carries the updated worktree list. */
+    'worktree/changed'(payload: {
+      repoRoot: string
+      worktrees: WorktreeRecord[]
+      timestamp: number
+    }): void
+    /** Client requests a worktree operation (create, list, switch, remove). Host executes it. */
+    'worktree/execute'(payload: {
+      action: 'create' | 'list' | 'switch' | 'remove'
+      name: string | undefined
+      baseRef: 'fresh' | 'head' | 'branch' | 'pr' | undefined
+      branch: string | undefined
+      prNumber: number | undefined
+      force: boolean | undefined
+    }): void
+    /** Host returns the result of a worktree operation to the client GUI. */
+    'worktree/result'(payload: {
+      action: 'create' | 'list' | 'switch' | 'remove'
+      success: boolean
+      record?: WorktreeRecord
+      worktrees?: WorktreeRecord[]
+      name?: string
+      error?: string
+      timestamp: number
+    }): void
+  }
 }

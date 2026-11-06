@@ -203,7 +203,7 @@ export class WorktreeService extends Service {
       const branch = (await this.git(target, ['rev-parse', '--abbrev-ref', 'HEAD'])).trim()
       if (branch === name) {
         const base = await this.resolveDefaultBase(repoRoot)
-        await this.git(target, ['reset', '--hard', base])
+        await this.git(target, ['reset', '--hard', base], 120000)
       }
       return this.commitRecord(repoRoot, { name, path: target, branch, baseRef: 'fresh', createdAt: existing?.createdAt ?? Date.now() })
     })
@@ -222,10 +222,27 @@ export class WorktreeService extends Service {
     const resolvedRepoRoot = path.resolve(repoRoot)
     const target = this.resolveWorktreePath(resolvedRepoRoot, name)
     if (await this.pathExists(target)) {
-      return this.reuseFreshWorktree(resolvedRepoRoot, target, name)
+      // If the directory exists but is not a registered git worktree, clean it up and create fresh.
+      if (!(await this.isRegisteredWorktree(resolvedRepoRoot, target))) {
+        this.ctx.logger?.warn?.('stale worktree directory at %s; removing and recreating', target)
+        await fs.rm(target, { recursive: true, force: true })
+      } else {
+        return this.reuseFreshWorktree(resolvedRepoRoot, target, name)
+      }
     }
     const base = await this.resolveDefaultBase(resolvedRepoRoot)
-    await this.git(resolvedRepoRoot, ['worktree', 'add', '-b', name, '--', target, base])
+    try {
+      await this.git(resolvedRepoRoot, ['worktree', 'add', '-b', name, '--', target, base], 120000)
+    } catch (error) {
+      const msg = (error as { message?: string }).message ?? ''
+      if (msg.includes('already exists')) {
+        this.ctx.logger?.warn?.('branch %s already exists; deleting and retrying', name)
+        await this.git(resolvedRepoRoot, ['branch', '-D', name], 120000)
+        await this.git(resolvedRepoRoot, ['worktree', 'add', '-b', name, '--', target, base], 120000)
+      } else {
+        throw error
+      }
+    }
     return this.commitRecord(resolvedRepoRoot, { name, path: target, branch: name, baseRef: 'fresh', createdAt: Date.now() })
   }
 
@@ -236,7 +253,7 @@ export class WorktreeService extends Service {
     if (await this.pathExists(target)) {
       return this.reuseExistingWorktree(resolvedRepoRoot, target, name, 'head')
     }
-    await this.git(resolvedRepoRoot, ['worktree', 'add', '-b', name, '--', target, 'HEAD'])
+    await this.git(resolvedRepoRoot, ['worktree', 'add', '-b', name, '--', target, 'HEAD'], 120000)
     return this.commitRecord(resolvedRepoRoot, { name, path: target, branch: name, baseRef: 'head', createdAt: Date.now() })
   }
 
@@ -253,7 +270,7 @@ export class WorktreeService extends Service {
     let lastError: unknown
     for (const ref of refs) {
       try {
-        await this.git(resolvedRepoRoot, ['worktree', 'add', '--', target, ref])
+        await this.git(resolvedRepoRoot, ['worktree', 'add', '--', target, ref], 120000)
         return this.commitRecord(resolvedRepoRoot, { name, path: target, branch: ref, baseRef: 'branch', createdAt: Date.now() })
       } catch (error) {
         lastError = error
@@ -271,12 +288,12 @@ export class WorktreeService extends Service {
       return this.reuseExistingWorktree(resolvedRepoRoot, target, slug, 'pr')
     }
     try {
-      await this.git(resolvedRepoRoot, ['fetch', 'origin', `pull/${prNumber}/head`], 30000)
+      await this.git(resolvedRepoRoot, ['fetch', 'origin', `pull/${prNumber}/head`], 120000)
     } catch (error) {
       const failure = error as { stderr?: string; message?: string }
       throw new Error(`failed to fetch pull/${prNumber}/head: ${(failure.stderr ?? failure.message ?? '').slice(0, 500)}`)
     }
-    await this.git(resolvedRepoRoot, ['worktree', 'add', '-b', slug, '--', target, 'FETCH_HEAD'])
+    await this.git(resolvedRepoRoot, ['worktree', 'add', '-b', slug, '--', target, 'FETCH_HEAD'], 120000)
     return this.commitRecord(resolvedRepoRoot, { name: slug, path: target, branch: slug, baseRef: 'pr', createdAt: Date.now() })
   }
 
@@ -300,6 +317,20 @@ export class WorktreeService extends Service {
     }
   }
 
+  /** Emit worktree/changed event for client GUI auto-refresh. */
+  private emitWorktreeChanged(repoRoot: string): void {
+    try {
+      const resolved = path.resolve(repoRoot)
+      this.ctx.emit('worktree/changed', {
+        repoRoot: resolved,
+        worktrees: this.list(resolved),
+        timestamp: Date.now(),
+      })
+    } catch {
+      // Event emission failures should not break worktree operations
+    }
+  }
+
   list(repoRoot: string): WorktreeRecord[] {
     return [...this.records(path.resolve(repoRoot)).values()]
   }
@@ -308,21 +339,36 @@ export class WorktreeService extends Service {
     const resolvedRepoRoot = path.resolve(repoRoot)
     const target = this.resolveWorktreePath(resolvedRepoRoot, name)
     await this.withRepoLock(resolvedRepoRoot, async () => {
-      const ordered = force ? ['worktree', 'remove', '--force', target] : ['worktree', 'remove', target]
-      await this.git(resolvedRepoRoot, ordered)
+      try {
+        const ordered = force ? ['worktree', 'remove', '--force', target] : ['worktree', 'remove', target]
+        await this.git(resolvedRepoRoot, ordered, 120000)
+      } catch (error) {
+        this.ctx.logger?.warn?.('git worktree remove failed for %s: %s; cleaning up manually', name, error)
+        if (await this.pathExists(target)) {
+          await fs.rm(target, { recursive: true, force: true })
+        }
+      }
+      // Delete the branch created for this worktree so the name can be reused.
+      try {
+        await this.git(resolvedRepoRoot, ['branch', '-D', name], 120000)
+      } catch {
+        // Branch may not exist or may be in use elsewhere; ignore.
+      }
       this.records(resolvedRepoRoot).delete(name)
     })
+    this.emitWorktreeChanged(resolvedRepoRoot)
   }
 
   async prune(repoRoot: string): Promise<void> {
     const resolvedRepoRoot = path.resolve(repoRoot)
     await this.withRepoLock(resolvedRepoRoot, async () => {
-      await this.git(resolvedRepoRoot, ['worktree', 'prune'])
+      await this.git(resolvedRepoRoot, ['worktree', 'prune'], 120000)
       const map = this.records(resolvedRepoRoot)
       for (const [name, record] of map) {
         if (!(await this.pathExists(record.path))) map.delete(name)
       }
     })
+    this.emitWorktreeChanged(resolvedRepoRoot)
   }
 }
 
