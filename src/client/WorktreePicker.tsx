@@ -23,7 +23,7 @@ const WORKTREE_CSS = `
 .dsh-worktree-plugin-picker-wrapper {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   position: relative;
   font-family: var(--dsw-font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
 }
@@ -31,40 +31,33 @@ const WORKTREE_CSS = `
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 2px 6px;
-  border-radius: 6px;
-  background: var(--dsw-button-bg, #f3f4f6);
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 999px;
   border: none;
-  color: var(--dsw-button-text, #111827);
-  font-size: 11px;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
   cursor: pointer;
   transition: all 0.2s;
 }
-.dsh-worktree-plugin-picker-button:hover {
-  background: var(--dsw-button-hover-bg, #e5e7eb);
-  border-color: var(--dsw-button-hover-border, #9ca3af);
+.dsh-worktree-plugin-picker-button:hover:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-hover);
 }
 .dsh-worktree-plugin-icon {
+  width: 16px;
+  height: 16px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: var(--dsw-button-bg-hover, #e5e7eb);
-  transition: all 0.2s;
-}
-.dsh-worktree-plugin-picker-button:hover .dsh-worktree-plugin-icon {
-  background: var(--dsw-button-hover-bg, #d1d5db);
 }
 .dsh-worktree-plugin-active-label {
   font-size: 11px;
   font-weight: 500;
-  color: var(--dsw-text-secondary, #6b7280);
+  color: var(--dsw-alias-label-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 100px;
+  max-width: 140px;
 }
 .dsh-worktree-plugin-hint {
   font-size: 10px;
