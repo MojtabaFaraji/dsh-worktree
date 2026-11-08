@@ -242,7 +242,7 @@ MIT License — see LICENSE for details.
 
 ## Repository
 
-https://github.com/MojtabaFaraji/dsh-worktree-plugin
+https://github.com/MojtabaFaraji/dsh-worktree
 
 ## Support
 
